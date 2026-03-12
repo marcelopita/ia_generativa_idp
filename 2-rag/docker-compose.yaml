@@ -14,7 +14,7 @@ services:
     container_name: docling-service
     environment:
       - HF_TOKEN=${HF_TOKEN}
-      - DOCLING_MAX_WORKERS=4
+      - DOCLING_MAX_WORKERS=8
     volumes:
       - docling_cache:/root/.cache/huggingface
     ports:
@@ -44,7 +44,8 @@ services:
 
       # Embeddings Ollama
       - RAG_EMBEDDING_ENGINE=ollama
-      - RAG_EMBEDDING_MODEL=qllama/bge-base-en-v1.5
+      - RAG_EMBEDDING_MODEL=qwen3-embedding:0.6b
+      - RAG_EMBEDDING_BATCH_SIZE=32
 
       # Timeout ampliado
       - WEBUI_TIMEOUT=300
@@ -52,9 +53,6 @@ services:
     restart: unless-stopped
 
 volumes:
-
-  ollama_data:
-    name: ollama_data
 
   chromadb_data:
     name: chromadb_data
