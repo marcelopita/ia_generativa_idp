@@ -1,7 +1,7 @@
 # Laboratório: Retrieval-Augmented Generation (RAG)
 
 Este laboratório tem como objetivo **construir um ambiente local de RAG
-(Retrieval-Augmented Generation)** utilizando ferramentas modernas do
+(Retrieval-Augmented Generation)** utilizando ferramentas do
 ecossistema de IA generativa.
 
 Ao final do laboratório, os alunos terão um sistema funcional capaz de:
@@ -59,17 +59,41 @@ Arquitetura:
 
 # 2.1 Pré-requisitos
 
-Instale previamente:
+Instale previamente, conforme o seu sistema operacional:
 
--   Git
--   Docker
--   VSCode (usado como terminal)
+| Ferramenta | Windows | macOS | Linux |
+|---|---|---|---|
+| Git | [git-scm.com](https://git-scm.com/download/win) ou `winget install Git.Git` | `brew install git` (ou Xcode Command Line Tools) | `sudo apt install git` (Debian/Ubuntu) ou `sudo dnf install git` (Fedora) |
+| Docker | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) com backend **WSL 2** | [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) | [Docker Engine](https://docs.docker.com/engine/install/) + plugin Compose |
+| VSCode | [code.visualstudio.com](https://code.visualstudio.com/) | [code.visualstudio.com](https://code.visualstudio.com/) | [code.visualstudio.com](https://code.visualstudio.com/) |
+
+Observações:
+
+-   **Windows:** abra o Docker Desktop e aguarde ele indicar que está em
+    execução antes de continuar. Use o **PowerShell** como terminal
+    (no VSCode: `Terminal → Novo Terminal`).
+-   **macOS:** abra o Docker Desktop ao menos uma vez para concluir a
+    instalação.
+-   **Linux:** para usar o Docker sem `sudo`, adicione seu usuário ao
+    grupo `docker` e reinicie a sessão:
+
+    ``` bash
+    sudo usermod -aG docker $USER
+    ```
+
+Confirme que tudo está instalado:
+
+``` bash
+git --version
+docker --version
+docker compose version
+```
 
 ------------------------------------------------------------------------
 
 # 2.2 Clonando o Repositório
 
-Clone o repositório da disciplina:
+Clone o repositório da disciplina (o comando é o mesmo nos três sistemas):
 
 ``` bash
 git clone https://github.com/marcelopita/ia_generativa_idp.git
@@ -85,28 +109,64 @@ Neste laboratório utilizaremos o diretório:
 
 # 2.3 Instalando Ollama (Bare Metal)
 
-O **Ollama será instalado diretamente no host**, permitindo uso completo
-da GPU.
+O **Ollama será instalado diretamente no host** (fora do Docker),
+permitindo uso completo da GPU.
 
 Isso é especialmente importante para:
 
 -   GPUs NVIDIA
--   Chips Apple Silicon que não suportam GPU em containers
-    Docker.
+-   Chips Apple Silicon, que não suportam GPU em containers Docker.
 
-Instale com:
+## Instalação
+
+### Windows
+
+Opção 1 -- instalador gráfico: baixe o `OllamaSetup.exe` em
+<https://ollama.com/download/windows> e execute.
+
+Opção 2 -- pelo PowerShell:
+
+``` powershell
+winget install Ollama.Ollama
+```
+
+Após a instalação, o Ollama roda em segundo plano (ícone na bandeja do
+sistema) e já expõe o servidor em `http://localhost:11434`.
+
+### macOS
+
+Opção 1 -- aplicativo: baixe em <https://ollama.com/download/mac>,
+arraste para `Aplicativos` e abra.
+
+Opção 2 -- Homebrew:
+
+``` bash
+brew install --cask ollama
+```
+
+Abra o aplicativo Ollama (ícone na barra de menus). Ele já inicia o
+servidor em `http://localhost:11434`.
+
+### Linux
 
 ``` bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-------------------------------------------------------------------------
+O script instala o Ollama como serviço `systemd`, que já inicia
+automaticamente. Verifique com:
+
+``` bash
+systemctl status ollama
+```
 
 ## Baixando os modelos
 
+Em qualquer sistema (PowerShell, Terminal ou shell Linux):
+
 ``` bash
 ollama pull qwen3-embedding:0.6b
-ollama pull llama3.2:3b
+ollama pull llama3.1:8b
 ```
 
 ### Modelos utilizados
@@ -114,20 +174,76 @@ ollama pull llama3.2:3b
 | Modelo                | Tipo            | Função no RAG                              | Parâmetros | Dimensão |
 |----------------------|-----------------|---------------------------------------------|-----------|----------|
 | `qwen3-embedding:0.6b` | Embedding Model | Converte textos em vetores para busca semântica | 600M      | 1024     |
-| `llama3.2:3b`         | Language Model  | Gera respostas a partir do contexto recuperado | 3B        | —        |
+| `llama3.1:8b`         | Language Model  | Gera respostas a partir do contexto recuperado | 8B        | —        |
 
 ## Variáveis importantes do Ollama
 
-``` bash
-export OLLAMA_NUM_PARALLEL=4
-export OLLAMA_MAX_LOADED_MODELS=2
+| Variável                   | Valor | Função                                      |
+|----------------------------|-------|---------------------------------------------|
+| `OLLAMA_NUM_PARALLEL`      | `4`   | Requisições simultâneas por modelo          |
+| `OLLAMA_MAX_LOADED_MODELS` | `2`   | Modelos carregados ao mesmo tempo (LLM + embedding) |
+
+Como definir (depois, **reinicie o Ollama** para valer):
+
+### Windows
+
+Feche o Ollama pela bandeja do sistema (`Quit`) e, no PowerShell:
+
+``` powershell
+setx OLLAMA_NUM_PARALLEL 4
+setx OLLAMA_MAX_LOADED_MODELS 2
 ```
 
-Inicie o servidor:
+Depois abra o Ollama novamente pelo menu Iniciar. (Alternativa gráfica:
+`Editar as variáveis de ambiente da conta` no menu Iniciar.)
+
+### macOS
 
 ``` bash
-ollama serve
+launchctl setenv OLLAMA_NUM_PARALLEL 4
+launchctl setenv OLLAMA_MAX_LOADED_MODELS 2
 ```
+
+Feche (`Quit Ollama` na barra de menus) e abra o aplicativo novamente.
+
+### Linux
+
+``` bash
+sudo systemctl edit ollama.service
+```
+
+No editor que abrir, adicione:
+
+    [Service]
+    Environment="OLLAMA_NUM_PARALLEL=4"
+    Environment="OLLAMA_MAX_LOADED_MODELS=2"
+    Environment="OLLAMA_HOST=0.0.0.0"
+
+Salve e reinicie o serviço:
+
+``` bash
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+```
+
+> `OLLAMA_HOST=0.0.0.0` é necessário no Linux para que os containers
+> Docker consigam acessar o Ollama (veja a seção 2.4).
+
+## Verificando o servidor
+
+O Ollama já deve estar rodando (aplicativo no Windows/macOS, serviço no
+Linux). Confirme:
+
+``` bash
+curl http://localhost:11434
+```
+
+Resposta esperada: `Ollama is running`. (No PowerShell use
+`curl.exe http://localhost:11434` ou abra a URL no navegador.)
+
+Só execute `ollama serve` manualmente se o servidor **não** estiver em
+execução. Se aparecer o erro `address already in use`, é porque ele já
+está rodando -- não é necessário fazer nada.
 
 ------------------------------------------------------------------------
 
@@ -135,7 +251,24 @@ ollama serve
 
 O serviço **Docling** usa a API do **OpenRouter** para extrair o conteúdo
 dos documentos. Obtenha uma chave em <https://openrouter.ai/keys> e
-coloque-a em um arquivo `.env` dentro do diretório `2-rag`:
+coloque-a em um arquivo `.env` dentro do diretório `2-rag`.
+
+Entre no diretório:
+
+``` bash
+cd ia_generativa_idp/2-rag
+```
+
+Crie o arquivo `.env` a partir do exemplo:
+
+### Windows (PowerShell)
+
+``` powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+### macOS e Linux
 
 ``` bash
 cp .env.example .env
@@ -148,15 +281,26 @@ O Docker Compose lê esse arquivo automaticamente e substitui
 
 Alternativamente, exporte a variável no shell antes de subir a stack:
 
-``` bash
-export OPENROUTER_API_KEY=sk-or-v1-...
+-   **Windows (PowerShell):** `$env:OPENROUTER_API_KEY = "sk-or-v1-..."`
+-   **macOS / Linux:** `export OPENROUTER_API_KEY=sk-or-v1-...`
+
+## Linux: acesso do container ao Ollama
+
+No Docker Desktop (Windows e macOS), o nome `host.docker.internal` já
+aponta para o host. No **Linux (Docker Engine)** isso **não** é
+automático. Edite o `docker-compose.yaml` e, no serviço `open-webui`,
+adicione:
+
+``` yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 ```
 
-Entre no diretório:
+Lembre-se também de ter configurado `OLLAMA_HOST=0.0.0.0` (seção 2.3).
 
-    2-rag
+## Subindo os serviços
 
-Execute:
+Execute (igual nos três sistemas):
 
 ``` bash
 docker compose up -d
@@ -170,15 +314,31 @@ Saída esperada:
     ✔ Container chromadb        Started
     ✔ Container open-webui      Started
 
-Para parar os serviços:
+Acesse o Open WebUI em <http://localhost:3000>. O primeiro acesso pede
+a criação de uma conta de administrador (local).
+
+Para acompanhar os logs e parar os serviços:
 
 ``` bash
+docker compose logs -f open-webui
 docker compose down
 ```
 
+## Problemas comuns
+
+| Sintoma | Sistema | Solução |
+|---|---|---|
+| `Cannot connect to the Docker daemon` | Todos | Abra o Docker Desktop (Windows/macOS) ou `sudo systemctl start docker` (Linux). |
+| Open WebUI não lista modelos do Ollama | Linux | Confira `extra_hosts` e `OLLAMA_HOST=0.0.0.0`. |
+| Porta 3000, 5001 ou 8000 já em uso | Todos | Encerre o processo que usa a porta ou altere o mapeamento em `ports` no `docker-compose.yaml`. |
+| Docker lento ou sem iniciar | Windows | Verifique se a virtualização está habilitada na BIOS e se o WSL 2 está instalado (`wsl --install`). |
+| Pouca memória / containers sendo encerrados | Windows/macOS | Aumente a memória em `Docker Desktop → Settings → Resources`. |
+| `permission denied` ao usar `docker` | Linux | Adicione o usuário ao grupo `docker` (seção 2.1). |
+| Ollama em CPU, sem usar a GPU | Windows/Linux | Atualize os drivers NVIDIA/AMD e reinicie o Ollama. |
+
 ------------------------------------------------------------------------
 
-# 2.5 Adicionando modelos do Hugging Face no Open WebUI
+# 2.5 Adicionando modelos do OpenRouter no Open WebUI
 
 Acesse o painel administrativo:
 
@@ -187,10 +347,10 @@ Acesse o painel administrativo:
 Adicionar nova conexão:
 
     URL Base da API:
-    https://router.huggingface.co/v1
+    https://openrouter.ai/api/v1
 
     Chave da API:
-    Token Hugging Face
+    sk-or-v1-...
 
 ------------------------------------------------------------------------
 
