@@ -1,0 +1,4 @@
+# Credenciais locais (ex.: OPENROUTER_API_KEY)
+.env
+.env.*
+!.env.example

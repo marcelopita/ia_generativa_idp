@@ -17,7 +17,7 @@ A stack utilizada inclui:
 -   Open WebUI -- interface gráfica para interação com LLMs
 -   ChromaDB -- banco de dados vetorial
 -   Docling -- extração de conteúdo de documentos
--   Modelos hospedados no Hugging Face
+-   OpenRouter -- modelos de visão (VLM) usados pelo Docling
 
 ------------------------------------------------------------------------
 
@@ -133,6 +133,25 @@ ollama serve
 
 # 2.4 Subindo o restante da stack com Docker
 
+O serviço **Docling** usa a API do **OpenRouter** para extrair o conteúdo
+dos documentos. Obtenha uma chave em <https://openrouter.ai/keys> e
+coloque-a em um arquivo `.env` dentro do diretório `2-rag`:
+
+``` bash
+cp .env.example .env
+# edite o .env e preencha OPENROUTER_API_KEY
+```
+
+O Docker Compose lê esse arquivo automaticamente e substitui
+`${OPENROUTER_API_KEY}` no `docker-compose.yaml`. O `.env` está no
+`.gitignore`, então a chave não vai para o repositório.
+
+Alternativamente, exporte a variável no shell antes de subir a stack:
+
+``` bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+```
+
 Entre no diretório:
 
     2-rag
@@ -185,15 +204,18 @@ Configuração:
 
 ``` json
 {
-  "pipeline": "standard",
-  "ocr": false,
-  "table_structure": false,
-  "do_layout_analysis": false,
-  "pdf_dpi": 150,
-  "num_workers": 4,
-  "max_pages": 200
+  "pipeline": "vlm",
+  "vlm_pipeline_preset": "default",
+  "do_ocr": false,
+  "do_table_structure": false,
+  "images_scale": 2.0,
+  "page_range": [1, 200]
 }
 ```
+
+O pipeline `vlm` é o que consome a API key do OpenRouter. O preset
+`default` aponta para o preset `openrouter` definido no
+`docker-compose.yaml`, que usa o modelo `google/gemini-2.5-flash`.
 
 ------------------------------------------------------------------------
 

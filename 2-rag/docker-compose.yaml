@@ -13,7 +13,10 @@ services:
     image: ghcr.io/docling-project/docling-serve-cpu:latest
     container_name: docling-service
     environment:
-      - HF_TOKEN=${HF_TOKEN}
+      # VLM remoto via OpenRouter (substitui o token do Hugging Face)
+      - DOCLING_SERVE_ENABLE_REMOTE_SERVICES=true
+      - DOCLING_SERVE_DEFAULT_VLM_PRESET=openrouter
+      - 'DOCLING_SERVE_CUSTOM_VLM_PRESETS={"openrouter": {"model_spec": {"name": "OpenRouter Gemini 2.5 Flash", "default_repo_id": "google/gemini-2.5-flash", "prompt": "Convert this page to markdown. Do not miss any text and only output the bare markdown!", "response_format": "markdown"}, "engine_options": {"engine_type": "api", "url": "https://openrouter.ai/api/v1/chat/completions", "headers": {"Authorization": "Bearer ${OPENROUTER_API_KEY}"}, "params": {"model": "google/gemini-2.5-flash", "max_tokens": 8192}, "timeout": 120.0, "concurrency": 4}, "scale": 2.0}}'
       - DOCLING_MAX_WORKERS=8
     volumes:
       - docling_cache:/root/.cache/huggingface
